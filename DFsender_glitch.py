@@ -1,19 +1,6 @@
-"""
-使い方
-1.pythonをインストール
-2.cmd開いてpy -m pip install pipでpipをインストール
-3.requirementsに書いてあるライブラリをpipでインストール
-4.下のTOKENにdiscordのTOKENを入れる
-5.このpyファイル実行
-6.youtubeの動画URLかプレイリストURLもしくはローカルのフォルダ名をdiscordのチャンネルに送信
-------------------------------------------------
-8mb以上のものnitroがないとアップロードできないです
-ユーザー名は下記のように?と置き換えてokです
-C:/Users/?/Downloads/folderName
-"""
-
 import os
 import time
+import shutil
 import discord
 from pytube import YouTube
 from pytube import Playlist
@@ -23,10 +10,10 @@ from pixivpy3 import AppPixivAPI
 TOKEN = os.getenv("TOKEN") #自分のDISCORD TOKEN(str)
 nitro = "None" #None,Classic,Normalのどれか
 refTOKEN = os.getenv("refTOKEN")
-myid = os.getenv("myid")
+myid = int(os.getenv("myid"))
 logFile = "/app/artists.txt"
-log_channel_id = os.getenv("logID")
-general_id = os.getenv("genID")
+log_channel_id = int(os.getenv("logID"))
+general_id = int(os.getenv("genID"))
 
 
 lib_ver = int(discord.__version__.replace(".",""))
@@ -53,6 +40,7 @@ def api_auth():
 async def on_ready():
     print("準備完了")
     await client.get_channel(general_id).send("準備完了")
+    await client.get_channel(log_channel_id).send("backup",file=discord.File(logFile))
 
 async def on_disconnect():
     print("bot disconnected")
@@ -66,13 +54,34 @@ async def on_message(message):
     elif mc == "restart":
         await message.reply("bot再起動中")
         await client.close()
-    elif mc == "saved":
+    elif mc == "help":
+        await message.reply("restart\nhelp\nread\nedit\nedit-replace\npixiv-all")
+    elif mc == "read":
         with open(logFile,"r") as f:
             content = f.read()
-        if len(content) >= 2000:
+        if content == "":
+            await message.reply("Content is an Empty")
+        elif len(content) >= 1998:
             await message.channel.send(file=discord.File(logFile))
         else:
-            message.reply(content)
+            await message.reply("`" + content + "`")
+    elif mc == "edit":
+        await message.reply("新しい内容を入力してください")
+        newText = await client.wait_for("message")
+        newText = newText.content
+        await client.get_channel(log_channel_id).send("backup",file=discord.File(logFile))
+        with open(logFile,"w") as f:
+            f.write(newText)
+    elif mc == "edit-replace":
+        await message.reply("新しい内容を入力してください\n例:`1234,4321`")
+        inputted = await client.wait_for("message")
+        inputted = inputted.content
+        with open(logFile,"r") as f:
+            content = f.read()
+        newText = content.replace(inputted.split(",")[0],inputted.split(",")[1])
+        await client.get_channel(log_channel_id).send("backup",file=discord.File(logFile))
+        with open(logFile,"w") as f:
+            f.write(newText)
     elif mc == "pixiv-all":
         users_str = ""
         api = None
@@ -113,7 +122,7 @@ async def on_message(message):
                 #else:
                     #Lastmsg = Lastmsg + "\n" + str(user.user.id) + "*" #未完了は*
                     #await Lastmsg_msg.edit(content=Lastmsg)
-                users_str = users_str + str(user.user.id) + "*"
+                users_str = users_str + "\n" + str(user.user.id) + "*"
                 with open(logFile,"w") as f:
                     f.write(users_str)
 
@@ -166,7 +175,7 @@ async def on_message(message):
                             extention = img_url[img_url.find('master1200.'):]
                             fileName = f"{illust.id}_0{extention}" if data.illust.page_count >= 2 else f"{illust.id}{extention}"
                             api.download(img_url,path=temp_folder,name=fileName)
-                            time.sleep(2)
+                            time.sleep(1)
                             text = f"{illust.title}:{illust.id}\n{tag_str}" if data.illust.page_count == 1 else f"{illust.title} 1/{data.illust.page_count}:{illust.id}\n{tag_str}"
                             await channel.send(text,file=discord.File(f"{temp_folder}/{fileName}"))
                             time.sleep(1)
@@ -180,13 +189,13 @@ async def on_message(message):
                                     extention = url[url.find('master1200.'):]
                                     fileName = f"{illust.id}_{i}{extention}"
                                     api.download(url,path=temp_folder,name=fileName)
-                                    time.sleep(2)
+                                    time.sleep(1)
                                     await channel.send(f"{illust.title}:{illust.id}\n{i+1}/{data.illust.page_count}",file=discord.File(f"{temp_folder}/{fileName}"))
                                     time.sleep(1)
                                     print("[o] " + illust.title + " " + str(i))
                                     os.remove(f"{temp_folder}/{fileName}")
                     next_qs2 = api.parse_qs(result_illusts.next_url)
-                    time.sleep(3)
+                    time.sleep(2)
                 users_str = users_str.replace("*","")
                 #await Lastmsg_msg.edit(content=Lastmsg)
                 with open(logFile,"w") as f:
